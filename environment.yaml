@@ -1,0 +1,11 @@
+name: my-sawh-env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - matplotlib
+  - pip
+  - flake8         # optional, for linting
+  - pytest         # optional, for testing
