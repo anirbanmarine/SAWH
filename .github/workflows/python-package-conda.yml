@@ -25,6 +25,7 @@ jobs:
       run: |
         echo "Running SAWH yield model..."
         python sawh_model.py   # Change to your actual script name
+        python Tbl_gen.py # Table generation script
 
     # Optional: Keep linting and testing if you have tests
     - name: Lint with flake8
