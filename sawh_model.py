@@ -1,122 +1,95 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-High-Yield SAWH Modelling for Marine Survival Crafts
+Multi-Sorbent SAWH Modelling for Marine Survival Crafts
 Author: Anirban Das (2026)
-Sorbent: LiCl-composite (based on LiCl@UiO-66, q₀ = 2.15 kg/kg)
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
-
-# Use Agg backend for headless environments (GitHub Actions)
 import matplotlib
 matplotlib.use('Agg')
 
 def dubinin_astakhov_uptake(RH, T, q0, E, n):
     """Dubinin-Astakhov isotherm for water uptake (kg/kg)"""
-    R = 8.314  # J/(mol·K)
+    R = 8.314
     if RH <= 0:
         return 0.0
     A = -R * T * np.log(RH)
     if E <= 0:
         return 0.0
     arg = (A / E) ** n
-    arg = np.minimum(arg, 700)  # prevent overflow
+    arg = np.minimum(arg, 700)
     return q0 * np.exp(-arg)
 
 # ============================================================================
-# Parameters for High-Yield LiCl-Composite Sorbent
+# Sorbent Parameters (from open literature)
 # ============================================================================
-da_q0 = 2.15      # kg/kg (from LiCl@UiO-66 at p/p₀=0.9)
-da_E  = 8500.0    # J/mol (estimated for LiCl-salt composite)
-da_n  = 2.0       # dimensionless (Dubinin-Radushkevich approximation)
+sorbents = {
+    'Silica Gel': {'q0': 0.42, 'E': 9500, 'n': 2.5, 'eff': 0.75},
+    'LiCl-Composite': {'q0': 2.15, 'E': 8500, 'n': 2.0, 'eff': 0.70},
+    'Biomass Aerogel': {'q0': 2.80, 'E': 7000, 'n': 2.2, 'eff': 0.75},
+    'MOF-303': {'q0': 0.43, 'E': 10000, 'n': 2.8, 'eff': 0.80}
+}
 
-# Baseline silica gel for comparison
-si_q0 = 0.42
-si_E  = 9500.0
-si_n  = 2.5
-
-# Survival craft constraints
 sorbent_mass = 1.0      # kg
 cycles_per_day = 1
-cycle_efficiency = 0.70  # 70% for composite (conservative)
 
-# Maritime conditions (tropical ocean)
-RH_vals = np.array([0.60, 0.70, 0.80, 0.90])
-T_vals_C = np.array([15, 20, 25, 30, 35])
-T_vals_K = T_vals_C + 273.15
+# Maritime test point (tropical ocean: 25°C, 80% RH)
+T_test_K = 25 + 273.15
+RH_test = 0.80
 
-print("=== Daily Water Yield for 1 kg High-Yield LiCl Composite Sorbent ===\n")
-print("RH% | T°C  | Uptake (kg/kg) | Daily Yield (L/day)")
-print("-" * 55)
+print("=== Daily Water Yield Comparison (1 kg sorbent, 25°C, 80% RH) ===\n")
+print(f"{'Sorbent':<18} {'Uptake (kg/kg)':<15} {'Yield (L/day)':<15}")
+print("-" * 50)
 
-for RH in RH_vals:
-    for T_C, T_K in zip(T_vals_C, T_vals_K):
-        q_eq = dubinin_astakhov_uptake(RH, T_K, da_q0, da_E, da_n)
-        q_cycle = q_eq * cycle_efficiency
-        daily_yield = sorbent_mass * q_cycle * cycles_per_day
-        print(f"{int(RH*100):3}% | {T_C:3}°C | {q_eq:6.3f}       | {daily_yield:5.2f}")
-
-# Comparison with silica gel at typical maritime point (25°C, 80% RH)
-RH_typical = 0.80
-T_typical_K = 25 + 273.15
-
-q_licl = dubinin_astakhov_uptake(RH_typical, T_typical_K, da_q0, da_E, da_n)
-q_si   = dubinin_astakhov_uptake(RH_typical, T_typical_K, si_q0, si_E, si_n)
-
-print("\n=== Comparison at 80% RH, 25°C ===")
-print(f"LiCl-composite uptake    : {q_licl:.3f} kg/kg")
-print(f"Silica gel uptake        : {q_si:.3f} kg/kg")
-print(f"Yield (LiCl, 1 kg, 70% eff): {1.0 * q_licl * 0.70:.2f} L/day")
-print(f"Yield (silica gel, 1 kg, 75% eff): {1.0 * q_si * 0.75:.2f} L/day")
+results = {}
+for name, params in sorbents.items():
+    q_eq = dubinin_astakhov_uptake(RH_test, T_test_K, params['q0'], params['E'], params['n'])
+    daily_yield = sorbent_mass * q_eq * params['eff'] * cycles_per_day
+    results[name] = daily_yield
+    print(f"{name:<18} {q_eq:<15.3f} {daily_yield:<15.2f}")
 
 # ============================================================================
-# PLOT 1: Isotherm comparison (uptake vs RH at fixed temperature)
+# Plot 1: Comparative Bar Chart
+# ============================================================================
+plt.figure(figsize=(8,5))
+names = list(results.keys())
+yields = list(results.values())
+bars = plt.bar(names, yields, color=['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728'])
+plt.ylabel('Daily Water Yield (L/day per kg sorbent)')
+plt.title('SAWH Performance Comparison at 25°C, 80% RH')
+plt.ylim(0, max(yields) * 1.2)
+for bar, yield_val in zip(bars, yields):
+    plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.05,
+             f'{yield_val:.2f}', ha='center', va='bottom')
+plt.tight_layout()
+plt.savefig('sorbent_comparison.png', dpi=300)
+plt.close()
+print("\n✓ Saved: sorbent_comparison.png")
+
+# ============================================================================
+# Plot 2: Isotherm Comparison (Uptake vs RH at 25°C)
 # ============================================================================
 RH_range = np.linspace(0.10, 0.99, 200)
 T_fixed = 25 + 273.15
 
-licl_uptake = [dubinin_astakhov_uptake(rh, T_fixed, da_q0, da_E, da_n) for rh in RH_range]
-silica_uptake = [dubinin_astakhov_uptake(rh, T_fixed, si_q0, si_E, si_n) for rh in RH_range]
+plt.figure(figsize=(9,6))
+colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
+linestyles = ['-', '--', '-.', ':']
 
-plt.figure(figsize=(8,5))
-plt.plot(RH_range*100, licl_uptake, 'g-', linewidth=2, label='LiCl-Composite (q₀=2.15)')
-plt.plot(RH_range*100, silica_uptake, 'b--', linewidth=2, label='Silica Gel (q₀=0.42)')
+for (name, params), color, ls in zip(sorbents.items(), colors, linestyles):
+    uptake = [dubinin_astakhov_uptake(rh, T_fixed, params['q0'], params['E'], params['n']) for rh in RH_range]
+    plt.plot(RH_range*100, uptake, color=color, linestyle=ls, linewidth=2, label=name)
+
 plt.xlabel('Relative Humidity (%)')
 plt.ylabel('Equilibrium Water Uptake (kg/kg)')
 plt.title('SAWH Sorbent Isotherms at 25°C')
 plt.grid(True, linestyle=':', alpha=0.7)
 plt.legend()
 plt.tight_layout()
-plt.savefig('isotherm_comparison.png', dpi=300)
+plt.savefig('isotherm_comparison_all.png', dpi=300)
 plt.close()
-print("\n✓ Saved: isotherm_comparison.png")
-
-# ============================================================================
-# PLOT 2: Yield sensitivity heatmap (for LiCl-composite)
-# ============================================================================
-RH_fine = np.linspace(0.50, 0.95, 50)
-T_fine_C = np.linspace(10, 35, 50)
-T_fine_K = T_fine_C + 273.15
-RH_grid, T_grid = np.meshgrid(RH_fine, T_fine_K)
-yield_grid = np.zeros_like(RH_grid)
-
-for i in range(len(T_fine_K)):
-    for j in range(len(RH_fine)):
-        q_eq = dubinin_astakhov_uptake(RH_fine[j], T_fine_K[i], da_q0, da_E, da_n)
-        yield_grid[i, j] = sorbent_mass * q_eq * cycle_efficiency * cycles_per_day
-
-plt.figure(figsize=(8,6))
-contour = plt.contourf(RH_fine*100, T_fine_C, yield_grid, levels=20, cmap='viridis')
-plt.colorbar(contour, label='Daily Water Yield (L/day per kg sorbent)')
-plt.xlabel('Relative Humidity (%)')
-plt.ylabel('Temperature (°C)')
-plt.title('SAWH Yield Sensitivity (LiCl-Composite Sorbent)')
-plt.grid(True, linestyle=':', alpha=0.3)
-plt.tight_layout()
-plt.savefig('yield_sensitivity.png', dpi=300)
-plt.close()
-print("✓ Saved: yield_sensitivity.png")
+print("✓ Saved: isotherm_comparison_all.png")
 
 print("\n=== All plots generated successfully ===")
