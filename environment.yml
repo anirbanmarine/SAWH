@@ -8,4 +8,4 @@ dependencies:
   - matplotlib
   - pip
   - flake8         # optional, for linting
-  - pytest         # optional, for testing
+  - pandas        # for the tables
