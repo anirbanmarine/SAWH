@@ -47,7 +47,7 @@ All dependencies are listed in `environment.yml`.
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/SAWH.git
+git clone https://github.com/anirbanmarine/SAWH.git
 cd SAWH
 ## Requirements
 
@@ -69,5 +69,5 @@ All dependencies are listed in `environment.yml`.
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/SAWH.git
+git clone https://github.com/anirbanmarine/SAWH.git
 cd SAWH
